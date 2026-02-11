@@ -19,7 +19,7 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "flimflam-frontend-${AWS::AccountId}"
+      BucketName: !Sub "flimflam-frontend-${AWS::AccountId}-v1"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
