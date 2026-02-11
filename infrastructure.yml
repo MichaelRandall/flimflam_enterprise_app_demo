@@ -1,0 +1,135 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Flimflam Enterprise - Ideal Architecture
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Existing EC2 KeyPair for SSH access
+  GitHubRepo:
+    Type: String
+    Default: "https://github.com"
+  AppEnv:
+    Type: String
+    Default: prod
+
+Resources:
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "flimflam-frontend-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  CloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub "OAI for ${FrontendBucket}"
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.DomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOAI}"
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          ForwardedValues: { QueryString: false, Cookies: { Forward: none } }
+        CustomErrorResponses:
+          - { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: "/index.html" }
+          - { ErrorCode: 404, ResponseCode: 200, ResponsePagePath: "/index.html" }
+
+  EC2SSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SSMReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/flimflam/${AppEnv}/*"
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref EC2SSMRole]
+
+  WebServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: 0.0.0.0/0 }
+
+  AppInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0c55b159cbfafe1f0 # Ensure this is AL2023 for your region
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SecurityGroups: [!Ref WebServerSG]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y docker git
+          service docker start
+          usermod -a -G docker ec2-user
+          mkdir -p /usr/local/lib/docker/cli-plugins/
+          curl -SL https://github.com -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+          
+          cd /home/ec2-user
+          git clone ${GitHubRepo} app
+          cd app
+          
+          # Fetch Secrets
+          PW=$(aws ssm get-parameter --name "/flimflam/${AppEnv}/postgres_password" --with-decryption --query "Parameter.Value" --output text --region ${AWS::Region})
+          JWT=$(aws ssm get-parameter --name "/flimflam/${AppEnv}/jwt_secret" --with-decryption --query "Parameter.Value" --output text --region ${AWS::Region})
+          
+          # Create .env
+          echo "POSTGRES_PASSWORD=$PW" > .env
+          echo "JWT_SECRET=$JWT" >> .env
+          echo "POSTGRES_USER=postgres" >> .env
+          echo "POSTGRES_DB=flimflam_db" >> .env
+          echo "DB_HOST=flimflam_db" >> .env
+          echo "DB_PORT=5432" >> .env
+          echo "PORT=5000" >> .env
+          
+          docker compose -f docker-compose.prod.yml up -d --build
+
+Outputs:
+  FrontendURL: { Value: !GetAtt FrontendDistribution.DomainName }
+  EC2PublicIP: { Value: !GetAtt AppInstance.PublicIp }

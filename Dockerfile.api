@@ -1,0 +1,19 @@
+# 1. Use a lightweight Node.js image
+FROM node:18-alpine
+
+# 2. Set the working directory inside the container
+WORKDIR /app
+
+# 3. Copy package files and install dependencies
+# We do this first to leverage Docker caching
+COPY backend/package*.json ./
+RUN npm install --production
+
+# 4. Copy the rest of your backend source code
+COPY backend/ .
+
+# 5. Expose the port your server.js is listening on
+EXPOSE 5000
+
+# 6. Command to start the server
+CMD ["node", "server.js"]
