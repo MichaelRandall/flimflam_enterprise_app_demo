@@ -1,0 +1,22 @@
+services:
+  frontend:
+    build:
+      context: ./web
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: exercise_api
+    ports:
+      - "5001:5000"
+    env_file:
+      - .env
+    # We removed 'depends_on: db' because the DB is now independent
+    volumes:
+      - .:/app
+    command: npm start
