@@ -11,6 +11,9 @@ Parameters:
   AppEnv:
     Type: String
     Default: prod
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
 
 Resources:
   FrontendBucket:
@@ -96,7 +99,8 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
-      ImageId: ami-0c55b159cbfafe1f0 # Ensure this is AL2023 for your region
+      # This magic string automatically finds the latest Amazon Linux 2023 AMI in YOUR region
+      ImageId: !Ref LatestAmiId 
       KeyName: !Ref KeyName
       IamInstanceProfile: !Ref EC2InstanceProfile
       SecurityGroups: [!Ref WebServerSG]
