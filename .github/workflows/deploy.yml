@@ -2,7 +2,7 @@ name: Deploy Frontend to S3
 
 on:
   push:
-    branches: [ main ]  # Triggers every time you push to the main branch
+    branches: [ prod ]  # Triggers every time you push to the main branch
 
 jobs:
   deploy:
