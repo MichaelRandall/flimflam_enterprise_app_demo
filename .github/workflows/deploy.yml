@@ -35,7 +35,7 @@ jobs:
       - name: Deploy to S3
         run: |
           # The bucket name is in your CloudFormation Outputs
-          aws s3 sync ./frontend/build s3://${{ secrets.S3_BUCKET_NAME }} --delete
+          aws s3 sync ./frontend/dist s3://${{ secrets.S3_BUCKET_NAME }} --delete
 
       - name: Invalidate CloudFront Cache
         run: |
