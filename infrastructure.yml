@@ -5,9 +5,15 @@ Parameters:
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: Existing EC2 KeyPair for SSH access
+  DockerComposeVersion:
+    Type: String
+    Default: "v2.24.5"
+  DockerComposeURL:
+    Type: String
+    Default: 'https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64'
   GitHubRepo:
     Type: String
-    Default: "https://github.com"
+    Default: 'https://github.com/MichaelRandall/flimflam_enterprise_app_demo.git'
   AppEnv:
     Type: String
     Default: prod
@@ -19,7 +25,7 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "flimflam-frontend-${AWS::AccountId}-v1"
+      BucketName: !Sub "flimflam-frontend-${AWS::AccountId}-v3"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -107,31 +113,48 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          # 1. System Updates & Dependencies
           yum update -y
-          yum install -y docker git
-          service docker start
+          yum install -y docker git libxcrypt-compat
+          systemctl enable docker
+          systemctl start docker
           usermod -a -G docker ec2-user
-          mkdir -p /usr/local/lib/docker/cli-plugins/
-          curl -SL https://github.com -o /usr/local/lib/docker/cli-plugins/docker-compose
-          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+          # 2. Correct Docker Compose Installation (Piece-by-Piece Method)
+          mkdir -p /usr/libexec/docker/cli-plugins/
           
+          # We define the parts separately so they don't get cut off
+          U_BASE="https://github.com"
+          U_PATH="/docker/compose/releases/download"
+          U_FILE="/v2.24.5/docker-compose-linux-x86_64"
+          
+          # The EC2 joins them into the full 60MB download link
+          curl -SL "${DockerComposeURL}" -o /usr/libexec/docker/cli-plugins/docker-compose
+          
+          chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+          # 3. Clone and Setup (Broken down to prevent truncation)
           cd /home/ec2-user
+          
           git clone ${GitHubRepo} app
           cd app
-          
-          # Fetch Secrets
-          PW=$(aws ssm get-parameter --name "/flimflam/${AppEnv}/postgres_password" --with-decryption --query "Parameter.Value" --output text --region ${AWS::Region})
-          JWT=$(aws ssm get-parameter --name "/flimflam/${AppEnv}/jwt_secret" --with-decryption --query "Parameter.Value" --output text --region ${AWS::Region})
-          
-          # Create .env
-          echo "POSTGRES_PASSWORD=$PW" > .env
-          echo "JWT_SECRET=$JWT" >> .env
-          echo "POSTGRES_USER=postgres" >> .env
-          echo "POSTGRES_DB=flimflam_db" >> .env
-          echo "DB_HOST=flimflam_db" >> .env
-          echo "DB_PORT=5432" >> .env
-          echo "PORT=5000" >> .env
-          
+
+          # 4. Fetch Secrets (Ensure region is correct!)
+          PW=$(aws ssm get-parameter --name "/flimflam/prod/postgres_password" --with-decryption --query "Parameter.Value" --output text --region ${AWS::Region})
+          JWT=$(aws ssm get-parameter --name "/flimflam/prod/jwt_secret" --with-decryption --query "Parameter.Value" --output text --region ${AWS::Region})
+
+          # 5. Create .env
+          cat <<EOF > .env
+          POSTGRES_PASSWORD=$PW
+          JWT_SECRET=$JWT
+          POSTGRES_USER=postgres
+          POSTGRES_DB=flimflam_db
+          DB_HOST=flimflam_db
+          DB_PORT=5432
+          PORT=5000
+          EOF
+
+          # 6. Launch
           docker compose -f docker-compose.prod.yml up -d --build
 
 Outputs:
