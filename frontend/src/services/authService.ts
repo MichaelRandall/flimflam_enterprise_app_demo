@@ -1,6 +1,7 @@
 import type { AuthResponse } from '../types';
 
-const API_URL = 'http://localhost:5001/api';
+//const API_URL = 'http://localhost:5001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
   const response = await fetch(`${API_URL}/login`, {

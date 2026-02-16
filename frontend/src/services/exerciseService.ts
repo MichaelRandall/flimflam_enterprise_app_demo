@@ -1,6 +1,7 @@
 import type { Exercise } from '../types';
 
-const API_URL = 'http://localhost:5001/api'; // Use 5001 for Mac
+//const API_URL = 'http://localhost:5001/api'; // Use 5001 for Mac
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 export const getExercises = async (): Promise<Exercise[]> => {
   // 1. Get the token we saved during login
