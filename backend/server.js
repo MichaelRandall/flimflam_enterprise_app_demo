@@ -6,11 +6,17 @@ const { Pool } = require('pg'); // Import the Postgres driver
 const app = express();
 // app.use(cors());
 
-app.use(cors({
-  origin: 'https://dcnsww4644m28.cloudfront.net', // Your exact CloudFront URL
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://dcnsww4644m28.cloudfront.net");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200); // Essential for the "Preflight" check!
+  }
+  next();
+});
+
+
 app.use(express.json());
 
 // 1. Connect to your Docker Postgres container
