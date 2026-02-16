@@ -59,5 +59,3 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.listen(5000, () => console.log('Backend running on port 5000'));
-
-if (user && await bcrypt.compare(password, user.password))
