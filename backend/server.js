@@ -4,7 +4,13 @@ const jwt = require('jsonwebtoken');
 const { Pool } = require('pg'); // Import the Postgres driver
 
 const app = express();
-app.use(cors());
+// app.use(cors());
+
+app.use(cors({
+  origin: 'https://dcnsww4644m28.cloudfront.net', // Your exact CloudFront URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // 1. Connect to your Docker Postgres container
