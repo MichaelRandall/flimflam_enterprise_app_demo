@@ -20,7 +20,7 @@ jobs:
         working-directory: ./frontend  # Make sure this matches your folder name!
         env:
           # This injects your EC2 IP so the React app knows where the API is
-          VITE_API_URL: http://${{ secrets.EC2_PUBLIC_IP }}
+          VITE_API_URL: http://${{ secrets.EC2_PUBLIC_IP }}/api
         run: |
           npm ci
           npm run build
