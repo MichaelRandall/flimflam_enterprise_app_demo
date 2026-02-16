@@ -182,5 +182,25 @@ VALUES(
 );
 
 
+CREATE TABLE IF NOT EXISTS workout_tracker.users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    name VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. INSERT the Admin User (This is what was missing!)
+-- Replace the hash below with the one you generated on your EC2
+INSERT INTO workout_tracker.users (email, password, name, role) 
+VALUES (
+    'admin@example.com', 
+    '$2b$10$qzRKD76caP/irvtJ9lRZyucLzDhKG3.BkHgT9hZ1vLnXIFmuh9/s6', 
+    'Admin User', 
+    'admin'
+) ON CONFLICT (email) DO NOTHING;
+
+
 
 
