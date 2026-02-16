@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
@@ -41,7 +42,7 @@ app.post('/api/login', async (req, res) => {
     const user = result.rows[0];
 
     // 4. Validate the password (Note: In production, use bcrypt here!)
-    if (user && user.password === password) {
+    if (user && await bcrypt.compare(password, user.password)) {
       const token = jwt.sign(
         { id: user.id, email: user.email, name: user.name }, 
         SECRET_KEY, 
@@ -58,3 +59,5 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.listen(5000, () => console.log('Backend running on port 5000'));
+
+if (user && await bcrypt.compare(password, user.password))
