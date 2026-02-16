@@ -58,4 +58,32 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+app.get('/api/exercises', async (req, res) => {
+  try {
+    // We specify the schema directly here for safety
+    const query = 'SELECT * FROM workout_tracker.exercises ORDER BY name ASC';
+    const result = await pool.query(query);
+    
+    // Send the data back to React
+    res.json(result.rows); 
+  } catch (err) {
+    console.error('Database Error:', err);
+    res.status(500).json({ error: 'Failed to fetch exercises' });
+  }
+});
+
+app.get('/api/users', async (req, res) => {
+  try {
+    // We specify the schema directly here for safety
+    const query = 'SELECT * FROM workout_tracker.users ORDER BY name ASC';
+    const result = await pool.query(query);
+    
+    // Send the data back to React
+    res.json(result.rows); 
+  } catch (err) {
+    console.error('Database Error:', err);
+    res.status(500).json({ error: 'Failed to fetch exercises' });
+  }
+});
+
 app.listen(5000, () => console.log('Backend running on port 5000'));
